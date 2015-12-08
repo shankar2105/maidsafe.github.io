@@ -67,7 +67,7 @@ var typingEffect = function() {
 // Header Change on Window Scroll
 var headerChangeOnScroll = function() {
   var excludeFlag = false;
-  var currentPage = window.location.href.split('/').pop();
+  var currentPage = window.location.href.split('/').pop().split('#')[0];
   for (var i = 0; i < subPage.length; i++) {
     if (subPage[i] === currentPage) {
       excludeFlag = true;
@@ -95,7 +95,7 @@ var headerChangeOnScroll = function() {
 
 var showMobPrimaryNav = function() {
   $('#secNavButton').on('click', function() {
-    var currentPage = window.location.href.split('/').pop();
+    var currentPage = window.location.href.split('/').pop().split('#')[0];
     var target = $('#secNav');
     if ($.inArray(currentPage, subPage) !== -1) {
       $(this).addClass('invert');
