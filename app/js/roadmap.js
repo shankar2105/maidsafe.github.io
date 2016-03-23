@@ -54,16 +54,85 @@ Utils.parseId = function(idName) {
   return idName.indexOf('#') === 0 ? idName : '#' + idName;
 };
 
-var Task = function() {
-  this.id = null;
+var TaskNav = function(taskId) {
+  this.taskId = taskId;
+  this.id = NAV_PREFIX + taskId;
 };
 
-var TaskNav = function(payload) {
-  this.id = payload.id;
+var TaskBox = function(taskId) {
+  this.taskId = taskId;
+  this.id = BOX_PREFIX + taskId;
 };
-TaskNav.prototype = Object.create(Task);
-TaskNav.prototype.constructor = TaskNav;
-console.log(new TaskNav({id: '1'}));
+
+var Task = function(payload, parent) {
+  this.name = payload.name;
+  this.id = payload.id;
+  this.desc = payload.desc;
+  this.parent = parent;
+  this.target = payload.target;
+  this.source = payload.source || null;
+  this.color = payload.color;
+  this.status = payload.status;
+  this.startDate = Utils.parseDate(payload.startDate);
+  this.daysCompleted = payload.daysCompleted || 0;
+  this.order = payload.order || 0;
+  this.section = payload.section || 0;
+  this.offset = payload.offset || 0;
+  this.nav = new TaskNav(this.id);
+  this.box = new TaskBox(this.id);
+};
+
+var Roadmap = function(payload) {
+  this.plainData = payload.data;
+  this.targetId = payload.target;
+  this.interval = payload.interval;
+  this.tasks = [];
+};
+
+Roadmap.prototype.getTask = function(taskId) {
+  var self = this;
+  var targetTask = null;
+  self.tasks.forEach(function(task) {
+    if (task.id !== taskId) {
+      return;
+    }
+    targetTask = task;
+  });
+  return targetTask;
+};
+
+Roadmap.prototype.prepareTasks = function () {
+  var self = this;
+
+  var setTask = function(task) {
+    if (!task.hasOwnProperty('children')) {
+      return;
+    }
+    task.children.forEach(function(child) {
+      self.tasks.push(new Task(child, self.getTask(task.id)));
+      if (child.hasOwnProperty('children')) {
+        setTask(child);
+      }
+    });
+  };
+
+  self.tasks.push(new Task(self.plainData, null));
+  setTask(self.plainData);
+  print('Task', self.tasks);
+};
+
+Roadmap.prototype.setNav = function () {
+  var self = this;
+  var prepareHeader = function() {
+    
+  };
+  prepareHeader();
+};
+
+Roadmap.prototype.draw = function() {
+  var self = this;
+  self.prepareTasks();
+};
 
 $(function() {
   // $.get('data/roadmapData.json', function(data) {
@@ -73,9 +142,9 @@ $(function() {
   //     interval: 10
   //   }).draw();
   // });
-  // new Roadmap({
-  //   data: jsonData,
-  //   target: '#Roadmap',
-  //   interval: 10
-  // }).draw();
+  new Roadmap({
+    data: jsonData,
+    target: '#Roadmap',
+    interval: 10
+  }).draw();
 });
