@@ -13,7 +13,6 @@ before_install:
   - sudo apt-get update && sudo apt-get install oracle-java8-installer
   - java -version
   - npm install -g grunt-cli
-  - npm --version
   - npm install -g bower
   - rvm install 2.0.0
   - gem install bundler
