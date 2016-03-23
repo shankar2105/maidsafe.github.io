@@ -10,8 +10,9 @@ branches:
     - master
 
 before_install:
-  - sudo apt-get update && sudo apt-get install oracle-java8-installer
-  - java -version
+  - sudo add-apt-repository ppa:webupd8team/java
+  - sudo apt-get update
+  - sudo apt-get install oracle-java8-installer
   - npm install -g grunt-cli
   - npm install -g bower
   - rvm install 2.0.0
