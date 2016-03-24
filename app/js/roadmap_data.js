@@ -107,7 +107,8 @@ var jsonData = {
             ]
         },
         {
-            "name": "CLIENT",
+            "name": "Client",
+            "id": "CLIENT",
             "desc": "Client node",
             "daysCompleted": 0,
             "target": "MPID",
@@ -120,7 +121,8 @@ var jsonData = {
             "startDate": "2016-1-13",
             "children" : [
               {
-                "name": "CLIENT_1",
+                "name": "Client 1",
+                "id": "CLIENT_1",
                 "target": "CLIENT_2",
                 "order": 1,
                 "section": 1,
@@ -129,7 +131,8 @@ var jsonData = {
                 "startDate": "2016-1-1"
               },
               {
-                  "name": "CLIENT_2",
+                  "name": "Client 2",
+                  "id": "CLIENT_2",
                   "target": "CLIENT_3",
                   "order": 2,
                   "section": 2,
@@ -138,7 +141,8 @@ var jsonData = {
                   "startDate": "2016-1-14"
               },
               {
-                  "name": "CLIENT_3",
+                  "name": "Client 3",
+                  "id": "CLIENT_3",
                   "target": "END",
                   "order": 3,
                   "section": 3,
@@ -150,6 +154,7 @@ var jsonData = {
         },
         {
           "name": "MPID",
+          "id": "MPID",
           "desc": "MPID Messaging",
           "daysCompleted": 0,
           "target": "END",
@@ -163,7 +168,8 @@ var jsonData = {
 
         },
         {
-          "name": "VAULT_CONFIG_1",
+          "name": "Vault Config 1",
+          "id": "VAULT_CONFIG_1",
           "desc": "VAULT CONFIG 1",
           "daysCompleted": 0,
           "target": "MPID",
@@ -176,7 +182,8 @@ var jsonData = {
           "startDate": "2016-1-13"
         },
         {
-          "name": "VAULT_CONFIG_2",
+          "name": "Vault Config 2",
+          "id": "VAULT_CONFIG_2",
           "desc": "VAULT CONFIG 2",
           "daysCompleted": 0,
           "target": "MPID",
