@@ -112,6 +112,7 @@
   line-height: 12px;
   padding-right: 8px;
   float: left;
+  cursor: pointer;
 }
 
 .roadmapBreadcrumb > .breadcrumb-i:not(:last-child):after {

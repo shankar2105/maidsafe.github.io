@@ -7,10 +7,15 @@ var document = window.document;
 var NAV_ID = 'RoadmapNav';
 var CHART_ID = 'RoadmapChart';
 var SVG_ID = 'RoadmapSvg';
+var SVG_BOX_GRP_ID = 'RoadmapSvgBoxGrp';
+var TASK_TITLE_ID = 'TaskTitle';
+var TASK_DESC_ID = 'TaskDesc';
+var BREADCUM_ID = 'Breadcum';
 
 var NAV_PREFIX = 'NAV_';
 var BOX_PREFIX = 'BOX_';
 var ARROW_PREFIX = 'ARROW_';
+var BOX_PATTERN_PREFIX = 'BOX_PATTERN_';
 
 var EXCLUDED_TASKS = ['EXTERNAL', 'DOWN_STREAM'];
 var END_TASK_TARGET = 'END';
@@ -31,15 +36,17 @@ var TASK_STATUS = {
   }
 };
 
-var TASK_COLORS = [ 'blue-1', 'blue-2', 'blue-3', 'orange-1', 'orange-2', 'orange-3',
+var TASK_COLORS = ['blue-1', 'blue-2', 'blue-3', 'orange-1', 'orange-2', 'orange-3',
   'coral-1', 'coral-2', 'coral-3', 'pink-1', 'pink-2', 'pink-3',
   'green-1', 'green-2', 'green-3', 'indigo-1', 'indigo-2', 'indigo-3',
   'cyan-1', 'cyan-2', 'cyan-3', 'turquoise-1', 'turquoise-2', 'turquoise-3',
   'grey-1', 'grey-2', 'grey-3', 'purple-1', 'purple-2', 'purple-3', ''
 ];
 
+var BOX_PATTERN_PATH = '22,0 0,22 43,22 62,0';
+
 var CONNECTION_ARROW = {
-  name: 'Connection_Arrows',
+  title: 'Connection_Arrows',
   refX: 12,
   refY: 10,
   markerWidth: 6,
@@ -58,6 +65,13 @@ var CSS_CLASS = {
   CHART: 'roadmapChart',
   CHART_BASE: 'roadmapChart-b',
   LINE: 'line-',
+  CHART_HEADER: 'roadmapChart-h',
+  CHART_HEADER_TITLE: 'roadmapChart-h-t',
+  CHART_HEADER_DESC: 'roadmapChart-h-desc',
+  BREADCUM: 'roadmapBreadcrumb',
+  BREADCUM_ITEM: 'breadcrumb-i',
+  PROGRESSBAR_BG: 'svg-blue-3',
+  PROGRESSBAR_STRIPE: 'svg-blue-2',
 };
 
 var print = function(title, data) {
@@ -175,7 +189,7 @@ var Task = function(payload, parent, isRoot) {
   this.source = payload.source || null;
   this.color = payload.color;
   this.status = payload.status;
-  this.startDate = Utils.parseDate(payload.startDate);
+  this.start = 0;
   this.daysCompleted = payload.daysCompleted || 0;
   this.order = payload.order || 0;
   this.section = payload.section || 0;
@@ -196,13 +210,15 @@ var Roadmap = function(payload) {
   this.plainData = payload.data;
   this.targetId = payload.target;
   this.interval = payload.interval;
+  this.isChartReady = false;
   this.tasks = [];
+  this.activeTasks = [];
   this.svg = {
     width: 0,
     height: 600,
     padding: 20
   };
-  this.progressbar = {
+  this.progressBar = {
     height: 10
   };
   this.box = {
@@ -210,6 +226,19 @@ var Roadmap = function(payload) {
     height: 22,
     strokeWidth: 2
   };
+};
+
+Roadmap.prototype.XScale = function(val) {
+  var self = this;
+  return (d3.scale.linear()
+    .domain([d3.min(self.activeTasks, function(d) {
+        return parseInt(d.start);
+      }),
+      d3.max(self.activeTasks, function(d) {
+        return parseInt(d.end);
+      })
+    ])
+    .range([0, (self.svg.width - 150)]))(val);
 };
 
 Roadmap.prototype.getTask = function(taskId) {
@@ -224,10 +253,104 @@ Roadmap.prototype.getTask = function(taskId) {
   return targetTask;
 };
 
+Roadmap.prototype.setActiveTasks = function(activeTask) {
+  var self = this;
+  var activeTasks = [];
+  self.tasks.forEach(function(task) {
+    if (EXCLUDED_TASKS.indexOf(task.name) !== -1) {
+      return;
+    }
+    if (!task.parent) {
+      return;
+    }
+    if (task.parent.id === activeTask.id) {
+      activeTasks.push(task);
+    }
+  });
+  self.activeTasks = activeTasks;
+};
+
 Roadmap.prototype.init = function() {
   var self = this;
   $(window).on('hashchange', function() {
-    self.drawChart(Utils.getLocationHash());
+    var hash = Utils.getLocationHash();
+    self.drawChart(hash);
+    self.updateNav(hash);
+  });
+};
+
+Roadmap.prototype.getIncomingTasks = function(activeTask) {
+  var self = this;
+  var incomings = [];
+  self.tasks.forEach(function(task) {
+    if (task.target === activeTask.id) {
+      incomings.push(task);
+    }
+  });
+  incomings.sort(function(a, b) {
+    return b.id === EXCLUDED_TASKS[0];
+  });
+  return incomings;
+};
+
+Roadmap.prototype.setStartValue = function() {
+  var self = this;
+
+  var getSourceStartVal = function(activeTask) {
+    var startVal = 0;
+    self.tasks.forEach(function(task) {
+      if ((task.target === activeTask.id)) {
+        startVal = task.start;
+      }
+    });
+    return startVal;
+  };
+
+  var getPreviousTask = function(activeTask) {
+    var prevTask = null;
+    self.tasks.forEach(function(task) {
+      if ((task.order < activeTask.order) && (task.section < activeTask.section) &&
+        (task.parent === activeTask.parent)) {
+        prevTask = task;
+      }
+    });
+    return prevTask;
+  };
+
+  var getDownStreamTasks = function(activeTask) {
+    var downStreamTasks = [];
+    self.tasks.forEach(function(task) {
+      if ((task.name === EXCLUDED_TASKS[1]) && (task.source === activeTask.id)) {
+        downStreamTasks.push(task);
+      }
+    });
+    return downStreamTasks;
+  };
+
+  var computerStartVal = function(activeTask) {
+    var startVal = 0;
+    if (activeTask.order <= 1) {
+      return startVal;
+    }
+    var prevTask = getPreviousTask(activeTask);
+    var downStreamTasks = [];
+    if (prevTask) {
+      downStreamTasks = getDownStreamTasks(prevTask);
+    }
+    var incomingTasks = self.getIncomingTasks(activeTask);
+    var sourceStartVal = getSourceStartVal(activeTask);
+    var gapCount = self.interval + incomingTasks.length + downStreamTasks.length + activeTask.offset + 1;
+    if (!sourceStartVal) {
+      sourceStartVal = 0;
+      gapCount *= activeTask.order > 1 ? (activeTask.order - 1) : activeTask.order;
+    }
+    startVal = sourceStartVal + gapCount;
+    return startVal;
+  };
+
+  self.tasks.forEach(function(task, i) {
+    self.tasks[i].start = computerStartVal(task);
+    self.tasks[i].end = parseInt(self.tasks[i].start) + self.interval;
   });
 };
 
@@ -248,6 +371,7 @@ Roadmap.prototype.prepareTasks = function() {
 
   self.tasks.push(new Task(self.plainData, null, true));
   setTask(self.plainData);
+  self.setStartValue();
   print('Task', self.tasks);
 };
 
@@ -298,14 +422,16 @@ Roadmap.prototype.prepareChart = function() {
       .attr('width', self.svg.width)
       .attr('height', self.svg.height)
       .append('g')
-      .attr('transform', 'translate(' + self.svg.padding + ',' + (self.svg.padding + self.progressbar.height) + ')');
+      .attr('id', SVG_BOX_GRP_ID)
+      // .attr('transform', 'translate(' + self.svg.padding + ',' + (self.svg.padding + self.progressBar.height) + ')');
   };
 
   var defineTaskStatus = function() {
     var status = d3.select(Utils.parseId(SVG_ID))
-    .append('g')
-    .attr('data-name', TASK_STATUS.NAME);
+      .append('g')
+      .attr('data-name', TASK_STATUS.NAME);
 
+    // status complete
     status.append('svg:pattern')
       .attr('id', TASK_STATUS.COMPLETE.id)
       .attr('patternUnits', 'objectBoundingBox')
@@ -328,40 +454,248 @@ Roadmap.prototype.prepareChart = function() {
 
   var defineConnectionArrows = function() {
     var connectionArrows = d3.select(Utils.parseId(SVG_ID))
-    .selectAll('marker')
-    .data(TASK_COLORS)
-    .enter()
-    .append('svg:marker')
-    .attr('id', function(d) {
-      return ARROW_PREFIX + d;
-    })
-    .attr('class', function(d) {
-      return CSS_CLASS.LINE + d;
-    })
-    .attr('viewBox', '0 0 20 20')
-    .attr('refX', CONNECTION_ARROW.refX)
-    .attr('refY', CONNECTION_ARROW.refY)
-    .attr('markerUnits', 'strokeWidth')
-    .attr('markerWidth', CONNECTION_ARROW.markerWidth)
-    .attr('markerHeight', CONNECTION_ARROW.markerHeight)
-    .attr('fill', CONNECTION_ARROW.fill)
-    .append('svg:path')
-    .attr('stroke-width', CONNECTION_ARROW.strokeWidth)
-    .attr('d', CONNECTION_ARROW.path);
+      .selectAll('marker')
+      .data(TASK_COLORS)
+      .enter()
+      .append('svg:marker')
+      .attr('id', function(d) {
+        return ARROW_PREFIX + d;
+      })
+      .attr('class', function(d) {
+        return CSS_CLASS.LINE + d;
+      })
+      .attr('viewBox', '0 0 20 20')
+      .attr('refX', CONNECTION_ARROW.refX)
+      .attr('refY', CONNECTION_ARROW.refY)
+      .attr('markerUnits', 'strokeWidth')
+      .attr('markerWidth', CONNECTION_ARROW.markerWidth)
+      .attr('markerHeight', CONNECTION_ARROW.markerHeight)
+      .attr('fill', CONNECTION_ARROW.fill)
+      .append('svg:path')
+      .attr('stroke-width', CONNECTION_ARROW.strokeWidth)
+      .attr('d', CONNECTION_ARROW.path);
+  };
+
+  var setChartHeader = function() {
+    var chartHeader = Utils.createDiv(null, [CSS_CLASS.CHART_HEADER]);
+    var chartHeaderTitle = Utils.createDiv(TASK_TITLE_ID, [CSS_CLASS.CHART_HEADER_TITLE]);
+    var chartHeaderDesc = Utils.createDiv(null, [CSS_CLASS.CHART_HEADER_DESC]);
+    var chartHeaderDescCtx = Utils.createDiv(TASK_DESC_ID);
+
+    chartHeader.append(chartHeaderTitle);
+    chartHeader.append(chartHeaderDesc.append(chartHeaderDescCtx));
+    $(Utils.parseId(CHART_ID)).append(chartHeader);
+
+    // Toggle Description
+    chartHeaderTitle.on('click', function(e) {
+      e.stopPropagation();
+      $(this).toggleClass('active');
+    });
+  };
+
+  var setBreadcum = function() {
+    var breadcum = Utils.createDiv(BREADCUM_ID, [CSS_CLASS.BREADCUM]);
+    $(Utils.parseId(CHART_ID)).append(breadcum);
   };
 
   setChartBase();
+  setBreadcum();
+  setChartHeader();
   setSvg();
   defineTaskStatus();
   defineConnectionArrows();
+  self.isChartReady = true;
+};
+
+Roadmap.prototype.updateBreadcum = function(activeTask) {
+  var self = this;
+  var breadcumList = [];
+  var breadcum = $(Utils.parseId(BREADCUM_ID));
+  var resetBreadcum = function() {
+    breadcum.html('');
+  };
+
+  var getParentTask = function(task) {
+    var parentTask = null;
+    self.tasks.forEach(function(item) {
+      if (item.id === task.id) {
+        parentTask = item.parent;
+      }
+    });
+    return parentTask;
+  };
+
+  var updateBreadcumList = function(task) {
+    breadcumList.push(task);
+    var parentTask = getParentTask(task);
+    if (parentTask) {
+      updateBreadcumList(parentTask);
+    }
+  };
+
+  resetBreadcum();
+  updateBreadcumList(activeTask);
+  breadcumList.push({
+    name: 'SAFE Network',
+    id: null
+  });
+  breadcumList.reverse();
+  var breadcumItem = null;
+  breadcumList.forEach(function(task) {
+    breadcumItem = Utils.createDiv(null, [CSS_CLASS.BREADCUM_ITEM], task.name);
+    breadcumItem.on('click', function(e) {
+      Utils.setLocationHash(task.id);
+    });
+    breadcum.append(breadcumItem);
+  });
+};
+
+Roadmap.prototype.updateChartHeader = function(activeTask) {
+  $(Utils.parseId(TASK_TITLE_ID)).text(activeTask.name).removeClass('active');
+  $(Utils.parseId(TASK_DESC_ID)).text(activeTask.desc);
+};
+
+Roadmap.prototype.defineBoxPattern = function(data) {
+  var self = this;
+  var boxPattern = d3.select(Utils.parseId(SVG_ID))
+    .select('g')
+    .append('pattern')
+    .attr('id', BOX_PATTERN_PREFIX + data.name)
+    .attr('x', data.x)
+    .attr('y', data.y)
+    .attr('width', 80)
+    .attr('height', self.box.height)
+    .attr('patternUnits', 'userSpaceOnUse')
+    .append('g')
+    .attr('opacity', 0.8);
+
+  boxPattern.append('rect')
+    .attr('x', 0)
+    .attr('y', 0)
+    .attr('class', data.bgClassName)
+    .attr('width', data.width)
+    .attr('height', data.height)
+    .attr('opacity', 0.8);
+
+  boxPattern.append('polygon')
+    .attr('class', data.stripeClassName)
+    .attr('points', BOX_PATTERN_PATH);
+};
+
+Roadmap.prototype.drawProgressBar = function(activeTask) {
+  var self = this;
+  var minStartVal = 0;
+
+  self.defineBoxPattern({
+    name: activeTask.id,
+    x: 0,
+    y: 0,
+    width: self.svg.width - (self.svg.padding * 2),
+    height: self.progressBar.height,
+    bgClassName: CSS_CLASS.PROGRESSBAR_BG,
+    stripeClassName: CSS_CLASS.PROGRESSBAR_STRIPE,
+  });
+
+  var progressBar = d3.select(Utils.parseId(SVG_BOX_GRP_ID))
+    .append('g');
+
+  // header base
+  progressBar.append('rect')
+    .attr('class', 'chart-progress-b')
+    .attr('x', self.svg.padding)
+    .attr('y', 0)
+    .attr('width', self.svg.width - (self.svg.padding * 2))
+    .attr('height', self.progressBar.height)
+    .attr('style', 'fill: url(' + Utils.parseId(BOX_PATTERN_PREFIX + activeTask.id) + ')');
+
+  // progress
+  progressBar.append('rect')
+    .attr('class', CSS_CLASS.PROGRESSBAR_STRIPE)
+    .attr('x', self.svg.padding)
+    .attr('y', 0)
+    .attr('width', self.XScale(activeTask.daysCompleted))
+    .attr('height', self.progressBar.height);
+};
+
+Roadmap.prototype.drawBoxes = function() {
+  var self = this;
+
+  // Box base
+  var box = d3.select(Utils.parseId(SVG_BOX_GRP_ID))
+    .select('g')
+    .selectAll('rect')
+    .data(self.activeTasks)
+    .enter();
+
+  box.append('defs').each(function(d) {
+    if (!d.status) {
+      self.defineBoxPattern({
+        name: d.id,
+        x: self.XScale(d.start),
+        y: (d.section - 1) * self.box.height * 2,
+        width: self.XScale(d.end - d.start),
+        height: self.box.height,
+        bgClassName: 'svg-' + d.color,
+        stripeClassName: 'svg-' + d.color,
+      });
+    }
+    $(this).remove();
+  });
+  console.log(box);
+
+  var boxBase = box.append('g')
+    .attr('class', function(d) {
+      console.log(d.name);
+      return 'boxBase ' + ('svg-' + d.color);
+    });
+
+  boxBase.append('rect')
+    .attr('x', function(d) {
+      return self.XScale(d.start);
+    })
+    .attr('y', function(d) {
+      return (d.section - 1) * self.box.height * 2;
+    })
+    .attr('width', function(d) {
+      return self.XScale(d.end - d.start);
+    })
+    .attr('height', self.box.height)
+    .attr('id', function(d) {
+      return d.box.id;
+    })
+    .attr('class', 'box')
+    .attr('style', function(d) {
+      if (!d.status) {
+        return 'fill: url(' + Utils.parseId(BOX_PATTERN_PREFIX + d.id) + ')';
+      }
+    })
+    .attr('stroke', 'none');
+};
+
+Roadmap.prototype.resetChart = function() {
+  $(Utils.parseId(SVG_BOX_GRP_ID)).children().remove();
 };
 
 Roadmap.prototype.drawChart = function(taskId) {
   var self = this;
   taskId = taskId || self.tasks[0].id;
   var task = self.getTask(taskId);
-  self.prepareChart();
-  console.log(task);
+  if (!self.isChartReady) {
+    self.prepareChart();
+  }
+  self.setActiveTasks(task);
+  self.resetChart();
+  self.updateBreadcum(task);
+  self.updateChartHeader(task);
+  self.drawProgressBar(task);
+  self.drawBoxes();
+};
+
+Roadmap.prototype.updateNav = function(taskId) {
+  var self = this;
+  taskId = taskId || self.tasks[0].id;
+  var task = self.getTask(taskId);
+  $(Utils.parseId(task.nav.id)).click();
 };
 
 Roadmap.prototype.draw = function() {
