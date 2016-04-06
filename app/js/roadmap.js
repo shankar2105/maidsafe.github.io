@@ -180,6 +180,11 @@ Utils.removeSvgClass = function(targetId, className) {
   $(targetId).attr('class', classList.join(' '));
 };
 
+Utils.textEllipsis = function(str, length) {
+  length = length || 0;
+  return length < str.length ? (str.slice(0, length) + '...') : str;
+};
+
 // create div element
 // return jQuery element
 Utils.createDiv = function(id, classList, text) {
@@ -418,6 +423,16 @@ Task.prototype.isExcluded = function() {
   return EXCLUDED_TASKS.indexOf(self.name) !== -1;
 };
 
+Task.prototype.isExternal = function() {
+  var self = this;
+  return EXCLUDED_TASKS[0] === self.name;
+};
+
+Task.prototype.isDownStream = function() {
+  var self = this;
+  return EXCLUDED_TASKS[1] === self.name;
+};
+
 /**
  * Roadmap
  */
@@ -430,6 +445,7 @@ var Roadmap = function(payload) {
   this.startDates = [];
   this.sectionCurrentIncomingCounts = [];
   this.activeTasks = [];
+  this.downStreamCounts = [];
   this.svg = {
     width: 0,
     height: 600,
@@ -442,6 +458,12 @@ var Roadmap = function(payload) {
     width: 0,
     height: 22,
     strokeWidth: 2
+  };
+  this.label = {
+    width: 65,
+    height: 12,
+    padding: 8,
+    borderRadius: 3
   };
 };
 
@@ -769,6 +791,9 @@ Roadmap.prototype.drawBoxes = function () {
   .enter();
 
   box.append('defs').each(function(d) {
+    if (d.isExcluded()) {
+      delete d;
+    }
     if (!d.status) {
       self.defineBoxPattern({
         name: d.id,
@@ -848,6 +873,19 @@ Roadmap.prototype.drawBoxes = function () {
 
 Roadmap.prototype.prepareBoxes = function(activeTask) {
   var self = this;
+  var setDownStreamCount = function() {
+    roadmapTasks.forEach(function(task) {
+      if (task.isDownStream()) {
+        var targetTask = Utils.getTask(task.target[0]);
+        if (!self.downStreamCounts[targetTask.section]) {
+          self.downStreamCounts[targetTask.section] = 1;
+        } else {
+          self.downStreamCounts[targetTask.section] += 1;
+        }
+      }
+    });
+  };
+
   var getIncomingTasks = function(targetTask) {
     var incomingTasks = [];
     roadmapTasks.forEach(function(task) {
@@ -882,8 +920,9 @@ Roadmap.prototype.prepareBoxes = function(activeTask) {
       } else {
          startDate = Utils.addDate(self.startDates[task.section - 2], self.interval);
       }
+      var downStreamCount = self.downStreamCounts[task.section - 1] ? self.downStreamCounts[task.section - 1] : 0;
       self.startDates[task.section - 1] = Utils.addDate(startDate,
-        (getIncomingNodesForSection(task.section) + task.target.length));
+        (getIncomingNodesForSection(task.section) + task.target.length + downStreamCount));
     });
   };
 
@@ -891,9 +930,6 @@ Roadmap.prototype.prepareBoxes = function(activeTask) {
     var activeTasks = [];
     console.log(activeTask);
     roadmapTasks.forEach(function(task) {
-      if (EXCLUDED_TASKS.indexOf(task.name) !== -1) {
-        return;
-      }
       if (!task.parent) {
         return;
       }
@@ -922,6 +958,7 @@ Roadmap.prototype.prepareBoxes = function(activeTask) {
     });
   };
 
+  setDownStreamCount();
   setStartDates();
 
   roadmapTasks.forEach(function(task, i) {
@@ -932,6 +969,27 @@ Roadmap.prototype.prepareBoxes = function(activeTask) {
   setActiveTasks(activeTask);
   setBoxParams();
   self.drawBoxes();
+};
+
+Roadmap.prototype.drawLabel = function(labelData) {
+  var self = this;
+  var label = d3.select(Utils.parseId(SVG_BOX_GRP_ID));
+
+  label.append('rect')
+    .attr('rx', self.label.borderRadius)
+    .attr('ry', self.label.borderRadius)
+    .attr('x', labelData.x)
+    .attr('y', labelData.y)
+    .attr('width', self.label.width)
+    .attr('height', self.label.height)
+    .attr('style', 'font-size: 12px')
+    .attr('class', CSS_CLASS.SVG + labelData.className);
+
+  label.append('text')
+    .text(Utils.textEllipsis(labelData.desc, 7))
+    .attr('x', labelData.x + (self.label.padding / 1.3))
+    .attr('y', labelData.y + (self.label.height / 1.3))
+    .attr('class', 'labelText');
 };
 
 Roadmap.prototype.drawConnections = function () {
@@ -959,7 +1017,12 @@ Roadmap.prototype.drawConnections = function () {
       .attr('fill', 'none')
       .attr('stroke-width', 2)
       .attr('marker-start', function() {
-        return connection.color ? 'url(#' + ARROW_PREFIX + connection.color + ')' : 'url(#' + ARROW_PREFIX + ')';
+        var task = Utils.getTask(connection.sourceId);
+        if (task.isDownStream()) {
+          return null;
+        }
+        var marker = connection.color ? 'url(#' + ARROW_PREFIX + connection.color + ')' : 'url(#' + ARROW_PREFIX + ')'
+        return marker;
       });
   };
 
@@ -1007,7 +1070,6 @@ Roadmap.prototype.prepareConnections = function(activeTask) {
   self.activeTasks.forEach(function(task) {
     var incomingCountIndex = task.section - 1;
     var splitTasks = splitTask(task);
-
     var incSecCount = function() {
       if (isNaN(self.sectionCurrentIncomingCounts[task.section - 1])) {
         self.sectionCurrentIncomingCounts[incomingCountIndex] = 1;
@@ -1032,11 +1094,11 @@ Roadmap.prototype.prepareConnections = function(activeTask) {
       var interEnd = { x:0, y:0 };
 
       if (task.connections.length === 0 || (index === 0)) {
-        start.x = task.box.x - (index * self.getPerUnit());
-        start.y = task.box.y + (self.box.height / 2) - (index * self.getPerUnit());
+        start.x = task.box.x;
+        start.y = task.box.y + (self.box.height / 2);
       } else {
         start.x = task.connections[index - 1].interStart.x;
-        start.y = task.connections[index - 1].interStart.y - (index * self.getPerUnit());
+        start.y = task.connections[index - 1].interStart.y - (self.box.height / 2);
       }
 
       end.x = upperTask.box.x + upperTask.box.width;
@@ -1051,7 +1113,11 @@ Roadmap.prototype.prepareConnections = function(activeTask) {
 
       interEnd.x = interStart.x;
       interEnd.y = end.y;
-
+      if (upperTask.isExternal()) {
+        interEnd = interStart;
+        end.x = interEnd.x;
+        end.y = -self.svg.padding;
+      }
       createConnection(upperTask.id, start, interStart, interEnd, end, upperTask.color);
     });
 
@@ -1088,7 +1154,14 @@ Roadmap.prototype.prepareConnections = function(activeTask) {
 
       interEnd.x = interStart.x;
       interEnd.y = end.y;
-
+      if (lowerTask.isDownStream()) {
+        start.x = task.box.x + task.box.width + self.sectionCurrentIncomingCounts[incomingCountIndex] + self.getPerUnit();
+        interStart = start;
+        interEnd = interStart;
+        end.x = interEnd.x;
+        end.y = self.svg.height - $(Utils.parseId(BREADCUM_ID)).height() - $('.' + CSS_CLASS.CHART_HEADER).height() - (self.svg.padding * 2);
+        self.drawLabel({x: end.x + 16, y: end.y - self.box.height, className: lowerTask.color, desc: lowerTask.desc})
+      }
       createConnection(lowerTask.id, start, interStart, interEnd, end, lowerTask.color);
     });
   });
@@ -1101,6 +1174,7 @@ Roadmap.prototype.resetChart = function() {
   self.startDates = [];
   self.sectionCurrentIncomingCounts = [];
   self.activeTasks = [];
+  self.downStreamCounts = [];
 };
 
 Roadmap.prototype.drawChart = function(taskId) {
@@ -1162,10 +1236,15 @@ Roadmap.prototype.addFeatures = function(activeTask) {
     var listBase = $('#' + listId);
     list.forEach(function(item) {
       var task = Utils.getTask(item.taskId);
-      var name = EXCLUDED_TASKS.indexOf(item.name) !== -1 ? item.id : item.name;
+      var name = task.name;
+      if (item.type !== TASK_FEATURE_TYPE.SUB_FEATURES) {
+        // TODO get source task name
+        // var sourceTask = Utils.getTask(task.source);
+        name = task.source;
+      }
       var listEle = Utils.createDiv(item.id,
         [ 'features-list-i', CSS_CLASS.FEATURES + task.color ]);
-      listEle.text(task.name);
+      listEle.text(name);
       listEle.on('click', (item.onClick)());
       listBase.append(listEle);
     });
@@ -1175,10 +1254,10 @@ Roadmap.prototype.addFeatures = function(activeTask) {
     if (!task.parent) {
       return;
     }
-    if ((task.parent.id === activeTask.id) && (task.id === EXCLUDED_TASKS[0])) {
+    if ((task.parent.id === activeTask.id) && task.isExternal()) {
       return features.reliedOn.push(new TaskFeature(task.id, TASK_FEATURE_TYPE.RELIED_ON_FEATURES));
     }
-    if ((task.parent.id === activeTask.id) && (task.id === EXCLUDED_TASKS[1])) {
+    if ((task.parent.id === activeTask.id) && task.isDownStream()) {
       return features.relyThis.push(new TaskFeature(task.id, TASK_FEATURE_TYPE.RELY_THIS_FEATURES));
     }
     if (task.parent.id === activeTask.id) {

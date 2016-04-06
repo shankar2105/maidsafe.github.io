@@ -369,6 +369,12 @@
     color: white !important;
     line-height: 50px;
   }
+  .roadmapChart-h-t  > div {
+    width: 90%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .roadmapChart-h-t .info-icon {
     display: none !important;
   }

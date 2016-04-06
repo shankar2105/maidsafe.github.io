@@ -12,6 +12,32 @@ var jsonData = {
   "startDate": "2016-1-1",
   "children": [
     {
+      "name": "EXTERNAL",
+      "id": "EX_VAULT_MANAGEMENT",
+      "source": "VAULT_MANAGEMENT",
+      "color": "blue-2",
+      "desc": "Vault desc",
+      "order": -1,
+      "section": 1,
+      "target": [
+        "VAULT_CONFIG"
+      ],
+      "startDate": "2016-1-1",
+    },
+    {
+      "name": "DOWN_STREAM",
+      "id": "DS_SELF_AUTH",
+      "source": "SELF_AUTH",
+      "color": "cyan-2",
+      "desc": "Vault desc",
+      "order": 999,
+      "section": 1,
+      "target": [
+        "VAULT"
+      ],
+      "startDate": "2016-1-1",
+    },
+    {
       "name": "Vault",
       "id": "VAULT",
       "color": "cyan-2",
@@ -21,8 +47,7 @@ var jsonData = {
         "VAULT_CONFIG",
         "VAULT_IN_MOBILE",
         "PUBLIC_IDENTITY",
-        "SAFECOIN",
-        "DS_SELF_AUTH"
+        "SAFECOIN"
       ],
       "order": 1,
       "section": 1,
@@ -37,8 +62,7 @@ var jsonData = {
       "desc": "Vault config desc",
       "daysCompleted": 10,
       "target": [
-        "VAULT_SUPPORT_EMBEDDED",
-        "DS_VAULT_MANAGEMENT"
+        "VAULT_SUPPORT_EMBEDDED"
       ],
       "order": 2,
       "section": 2,

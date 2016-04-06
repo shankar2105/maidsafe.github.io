@@ -55,12 +55,6 @@
   text-transform: capitalize;
   -webkit-user-select: none;
 }
-.roadmapChart-h-t  > div {
-  width: 90%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 .roadmapChart-h-t .info-icon {
   height: 22px;
   position: absolute;
