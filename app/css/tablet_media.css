@@ -277,22 +277,21 @@
   /* Roadmap */
   .roadmap {
     height: auto;
-    min-height: 600px;
-  }
-  .roadmap .roadmapNav {
-    width: 300px;
-    height: inherit;
-    min-height: inherit;
   }
   .roadmapBreadcrumb {
-    padding: 8px 20px;
+    padding: 8px 20px 0;
   }
-
+  .roadmapBreadcrumb .breadcrumb-i {
+    padding-bottom: 8px;
+  }
+  .roadmapSvg {
+    display: none;
+  }
   .roadmapChart-h {
     padding: 0;
   }
-  .roadmapChart-h-menu {
-    display: none;
+  .roadmapChart-h .roadmapChart-h-t {
+    padding: 0 0 0 20px;
   }
   .roadmapChart-h:before {
     content: '';
@@ -306,13 +305,16 @@
     left: 0;
     z-index: -1;
   }
+  .roadmapChart-h .roadmapChart-h-menu {
+    display: none;
+  }
   .roadmapChart-h-t {
-    color: white;
-    padding-left: 20px;
+    width: 80%;
+    color: white !important;
     line-height: 50px;
   }
-  .roadmapChart-h-t:after {
-    display: none;
+  .roadmapChart-h-t .info-icon {
+    display: none !important;
   }
   .roadmapChart-h-desc {
     display: block !important;
@@ -326,6 +328,7 @@
     font-weight: 600;
   }
   .listTitle {
-    width: 80%;
+    width: 100%;
+    padding-top: 16px;
   }
 }
