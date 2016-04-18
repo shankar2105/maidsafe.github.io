@@ -47,7 +47,6 @@ var infoIconClose = '<svg class="info-icon closed" version="1.1" id="Layer_1" x=
   '<path fill="#FFFFFF" d="M11,17.3h2v-6h-2V17.3z M11,9.3h2v-2h-2V9.3z"/></svg>';
 
 var TASK_STATUS = {
-  NAME: 'Status_Patterns',
   COMPLETE: {
     id: 'STATUS_COMPLETE',
     path: '14.9,4.9 7.7,12.1 4.9,9.2 3.5,10.6 7.7,14.9 16.3,6.3',
@@ -129,7 +128,7 @@ var CSS_CLASS = {
 };
 
 var roadmapTasks = [];
-var DEFAULT_START_DATE = null;
+
 var print = function(title, data) {
   console.log(title + ' ::');
   console.log(data);
@@ -274,7 +273,8 @@ Utils.getChildrenTasks = function(taskId) {
     if (task.isExcluded()) {
       return;
     }
-    if (task.parent && task.parent.id === taskId) {
+    var parentTask = Utils.getTask(task.parent);
+    if (parentTask && parentTask.id === taskId) {
       children.unshift(task);
     }
   });
@@ -303,6 +303,12 @@ Utils.getColorLevelDown = function(color) {
   var level = parseInt(color.slice(-1));
   return color.slice(0, -1) + (level + 1);
 };
+
+var DEFAULT_START_DATE = Utils.parseDate(new Date());
+
+/**
+ * Connection
+ */
 var Connection = function(taskId, sourceId) {
   this.sourceId = sourceId;
   this.targetId = taskId;
@@ -325,6 +331,7 @@ Connection.prototype.setPath = function(start, interStart, interEnd, end) {
 Connection.prototype.setColor = function(color) {
   this.color = color;
 };
+
 
 var TaskFeature = function(taskId, type) {
   this.id = FEATURES_PREFIX + taskId;
@@ -525,15 +532,16 @@ TaskBox.prototype.mouseOut = function() {
 /**
  * Task
  */
-var Task = function(payload, parent, isRoot) {
+var Task = function(payload, parentId, isRoot, level) {
   this.name = payload.name;
   this.id = payload.id;
   this.desc = payload.desc;
-  this.parent = parent;
+  this.parent = parentId;
   this.target = payload.target;
   this.source = payload.source || null;
   this.color = payload.color;
   this.status = payload.status;
+  this.level = level || 0;
   this.startDate = Utils.parseDate(payload.startDate);
   this.daysCompleted = payload.daysCompleted || 0;
   this.inProgress = payload.inProgress || 0;
@@ -617,20 +625,21 @@ Roadmap.prototype.init = function() {
 Roadmap.prototype.prepareTasks = function() {
   var self = this;
 
-  var setTask = function(task) {
+  var setTask = function(task, level) {
     if (!task.hasOwnProperty('children')) {
       return;
     }
     task.children.forEach(function(child) {
-      roadmapTasks.push(new Task(child, Utils.getTask(task.id), false));
+      var childLevel = level + 1;
+      roadmapTasks.push(new Task(child, task.id, false, childLevel));
       if (child.hasOwnProperty('children')) {
-        setTask(child);
+        setTask(child, childLevel);
       }
     });
   };
 
   roadmapTasks.push(new Task(self.plainData, null, true));
-  setTask(self.plainData);
+  setTask(self.plainData, 0);
   print('Task', roadmapTasks);
 };
 
@@ -653,13 +662,15 @@ Roadmap.prototype.setNav = function() {
     var navBase = Utils.createDiv(null, [ CSS_CLASS.NAV_BASE ]);
     var navBaseCtx = Utils.createDiv(NAV_ID, [ 'roadmapNav-b' ]);
     $(Utils.parseId(self.targetId)).append(navBase.append(navBaseCtx));
+    navBase.width(280);
   };
 
   var setNavList = function(task) {
     if (task.isExcluded() || task.id === MVP_ID) {
       return;
     }
-    var parentNavList = !task.parent ? $(Utils.parseId(NAV_ID)) : $(Utils.parseId(task.parent.nav.id));
+    var parentTask = Utils.getTask(task.parent);
+    var parentNavList = !parentTask ? $(Utils.parseId(NAV_ID)) : $(Utils.parseId(parentTask.nav.id));
     var listClasses = [ task.color ];
     if (task.nav.isRoot) {
       listClasses.push(CSS_CLASS.LIST_TITLE);
@@ -687,7 +698,7 @@ Roadmap.prototype.prepareChart = function() {
     var chart = Utils.createDiv(null, [ CSS_CLASS.CHART ]);
     var chartBase = Utils.createDiv(CHART_ID, [ CSS_CLASS.CHART_BASE ]);
     $(Utils.parseId(self.targetId)).append(chart.append(chartBase));
-    self.svg.width = chartBase.width();
+    self.svg.width = window.screen.width - 280;
   };
 
   var setSvg = function() {
@@ -845,22 +856,9 @@ Roadmap.prototype.updateBreadcum = function(activeTask) {
     breadcum.html('');
   };
 
-  var getParentTask = function(task) {
-    var parentTask = null;
-    roadmapTasks.forEach(function(item) {
-      if (!item) {
-        return;
-      }
-      if (item.id === task.id) {
-        parentTask = item.parent;
-      }
-    });
-    return parentTask;
-  };
-
   var updateBreadcumList = function(task) {
     breadcumList.push(task);
-    var parentTask = getParentTask(task);
+    var parentTask = task.parent;
     if (parentTask) {
       updateBreadcumList(parentTask);
     }
@@ -894,8 +892,8 @@ Roadmap.prototype.updateChartHeader = function(activeTask) {
 
 Roadmap.prototype.updateSvgHeight = function() {
   var self = this;
-  var headerheight =  $('header').height();
   self.svg.height = window.screen.height - 180;
+  self.svg.width = window.screen.width - 280;
 };
 
 Roadmap.prototype.defineBoxPattern = function(data) {
@@ -1237,22 +1235,12 @@ Roadmap.prototype.drawBoxes = function() {
 
 Roadmap.prototype.prepareBoxes = function(activeTask) {
   var self = this;
-  var setDownStreamCount = function() {
-    self.activeTasks.forEach(function(task) {
-      if (task.isDownStream()) {
-        var targetTask = Utils.getTask(task.target[0]);
-        if (!self.downStreamCounts[targetTask.section]) {
-          self.downStreamCounts[targetTask.section] = 1;
-        } else {
-          self.downStreamCounts[targetTask.section] += 1;
-        }
-      }
-    });
-  };
-
   var getIncomingTasks = function(targetTask) {
     var incomingTasks = [];
     roadmapTasks.forEach(function(task) {
+      if (task.isDownStream()) {
+        return;
+      }
       if (task.target.indexOf(targetTask.id) !== -1) {
         incomingTasks.push(task);
       }
@@ -1264,53 +1252,22 @@ Roadmap.prototype.prepareBoxes = function(activeTask) {
     var incomingCount = 0;
     var incomingTasks = [];
     self.activeTasks.forEach(function(task) {
+      if (task.isDownStream()) {
+        return;
+      }
       if (task.section === section) {
         incomingTasks = getIncomingTasks(task);
-        task.incomingTasks = incomingTasks;
         incomingCount += incomingTasks.length;
+        task.incomingTasks = incomingTasks;
       }
     });
     return incomingCount;
   };
 
-  var setStartDates = function() {
-    var startDate = null;
-    roadmapTasks.forEach(function(task) {
-      if (self.startDates[task.section - 1]) {
-        return;
-      }
-      if (task.section === 1) {
-        startDate = task.startDate;
-      } else {
-        startDate = Utils.addDate(self.startDates[task.section - 2], self.interval);
-      }
-      var downStreamCount = self.downStreamCounts[task.section - 1] ? self.downStreamCounts[task.section - 1] : 0;
-      var incomingCount = getIncomingNodesForSection(task.section);
-      self.startDates[task.section - 1] = Utils.addDate(startDate,
-        (incomingCount + task.target.length + downStreamCount));
-    });
-  };
-
-  var setActiveTasks = function() {
-    var activeTasks = [];
-    roadmapTasks.forEach(function(task) {
-      if (!task.parent) {
-        return;
-      }
-      if (task.parent.id === activeTask.id) {
-        activeTasks.push(task);
-      }
-    });
-    if (activeTasks.length === 0) {
-      return self.activeTasks.push(activeTask);
-    }
-    self.activeTasks = activeTasks;
-    // print('Active tasks', activeTasks);
-  };
-
   var setBoxParams = function() {;
     var progressBarTaskSpacing = 18;
-    roadmapTasks.forEach(function(task) {
+    self.activeTasks.forEach(function(task) {
+      console.log(task.name, task.startDate, task.endDate);
       var scaledStart = self.timeScale(self.dateFormat.parse(task.startDate));
       var scaledEnd =  self.timeScale(self.dateFormat.parse(task.endDate));
       var boxYPos = ((task.order - 1) * self.box.height * 2) + progressBarTaskSpacing;
@@ -1325,18 +1282,71 @@ Roadmap.prototype.prepareBoxes = function(activeTask) {
     });
   };
 
+  var setStartDates = function() {
+    self.startDates = [];
+    self.activeTasks.forEach(function(task) {
+      if (self.startDates[task.section - 1] || task.isExcluded()) {
+        return;
+      }
+
+      if (task.section === 1) {
+        return self.startDates[task.section - 1] = DEFAULT_START_DATE;
+      }
+
+      var startDate = Utils.addDate(self.startDates[task.section - 2], self.interval);
+      var downStreamCount = self.downStreamCounts[task.section - 1] ? self.downStreamCounts[task.section - 1] : 0;
+      var incomingCount = getIncomingNodesForSection(task.section);
+      var gap = incomingCount + downStreamCount;
+      gap = gap === 1 ? (gap + 1) : gap;
+      self.startDates[task.section - 1] = Utils.addDate(startDate, gap);
+    });
+    self.activeTasks.forEach(function(task) {
+      task.startDate = self.startDates[task.section - 1];
+      task.endDate = Utils.addDate(task.startDate, self.interval);
+    });
+  };
+
+  var setDownStreamCount = function() {
+    self.activeTasks.forEach(function(task) {
+      if (!task.isDownStream()) {
+        return;
+      }
+      var targetTask = Utils.getTask(task.target[0]);
+      if (!self.downStreamCounts[targetTask.section - 1]) {
+        self.downStreamCounts[targetTask.section - 1] = 0;
+      }
+      self.downStreamCounts[targetTask.section - 1] += 1;
+    });
+  };
+
+  var setActiveTasks = function() {
+    self.activeTasks = [];
+    roadmapTasks.forEach(function(task) {
+      if (!task.parent) {
+        return;
+      }
+      var parentTask = Utils.getTask(task.parent);
+      if (parentTask.id === activeTask.id) {
+        self.activeTasks.push(task);
+      }
+    });
+    if (self.activeTasks.length === 0) {
+      return self.activeTasks.push(activeTask);
+    }
+    self.activeTasks.sort(function(a, b) {
+      return a.section - b.section;
+    });
+    print('Active tasks', self.activeTasks);
+  };
+
   setActiveTasks(activeTask);
 
   setDownStreamCount();
 
   setStartDates();
 
-  roadmapTasks.forEach(function(task) {
-    task.startDate = self.startDates[task.section - 1];
-    task.endDate = Utils.addDate(task.startDate, self.interval);
-  });
-
   setBoxParams();
+
   self.drawBoxes();
 };
 
@@ -1427,27 +1437,33 @@ Roadmap.prototype.prepareConnections = function() {
   if (self.activeTasks.length === 1) {
     return;
   }
+
   var splitTask = function(targetTask) {
-    var upperTasks = [];
-    var lowerTasks = [];
+    var result = {
+      lowerTasks: [],
+      upperTasks: []
+    };
     if (!targetTask) {
       return;
     }
     var incomings = targetTask.incomingTasks;
+    if (!incomings) {
+      return result;
+    }
     incomings.forEach(function(incoming) {
       if (incoming.order > targetTask.order) {
-        lowerTasks.unshift(incoming);
+        result.lowerTasks.unshift(incoming);
       } else {
-        upperTasks.unshift(incoming);
+        result.upperTasks.unshift(incoming);
       }
     });
-    lowerTasks.sort(function(a, b) {
+    result.lowerTasks.sort(function(a, b) {
       return a.order > b.order;
     });
-    upperTasks.sort(function(a, b) {
+    result.upperTasks.sort(function(a, b) {
       return a.order > b.order;
     });
-    return { lowerTasks: lowerTasks, upperTasks: upperTasks };
+    return result;
   };
 
   var incSecCount = function(task) {
@@ -1459,25 +1475,25 @@ Roadmap.prototype.prepareConnections = function() {
     }
   };
 
+  var createConnection = function(task, targetId, start, interStart, interEnd, end, color) {
+    var connection = new Connection(task.id, targetId);
+    connection.setPath(start, interStart, interEnd, end);
+    connection.setColor(color);
+    task.connections.push(connection);
+  };
+
   self.activeTasks.forEach(function(task) {
     var incomingCountIndex = task.section - 1;
     var splitTasks = splitTask(task);
-    var createConnection = function(targetId, start, interStart, interEnd, end, color) {
-      var connection = new Connection(task.id, targetId);
-      connection.setPath(start, interStart, interEnd, end);
-      connection.setColor(color);
-      task.connections.push(connection);
-    };
 
     // draw upper tasks
     splitTasks.upperTasks.forEach(function(upperTask, index) {
-      incSecCount(task);
       var start = { x: 0, y: 0 };
       var end = { x: 0, y: 0 };
       var interStart = { x: 0, y: 0 };
       var interEnd = { x: 0, y: 0 };
-
-      if (task.connections.length === 0 || (index === 0)) {
+      incSecCount(task);
+      if (task.connections.length === 0 || index === 0) {
         start.x = task.box.x;
         start.y = task.box.y + (self.box.height / 2);
       } else {
@@ -1487,13 +1503,14 @@ Roadmap.prototype.prepareConnections = function() {
       if (upperTask.isExternal() && index !== 0) {
         start.y = start.y - (self.label.height / 2);
       }
+
       end.x = upperTask.box.x + upperTask.box.width;
       end.y = upperTask.box.y + (self.box.height / 2);
 
-      if (index > 0) {
-        interStart.x = start.x - self.getPerUnit();
-      } else {
+      if (index === 0) {
         interStart.x = start.x - (self.sectionCurrentIncomingCounts[incomingCountIndex] * self.getPerUnit());
+      } else {
+        interStart.x = start.x - self.getPerUnit();
       }
       interStart.y = start.y;
 
@@ -1512,7 +1529,7 @@ Roadmap.prototype.prepareConnections = function() {
           source: sourceTask.id
         });
       }
-      createConnection(upperTask.id, start, interStart, interEnd, end, upperTask.color);
+      createConnection(task, upperTask.id, start, interStart, interEnd, end, upperTask.color);
     });
 
     // draw lower tasks
@@ -1577,7 +1594,7 @@ Roadmap.prototype.prepareConnections = function() {
         }
         self.drawLabel(labelData);
       }
-      createConnection(lowerTask.id, start, interStart, interEnd, end, lowerTask.color);
+      createConnection(task, lowerTask.id, start, interStart, interEnd, end, lowerTask.color);
     });
   });
   self.drawConnections();
@@ -1674,13 +1691,14 @@ Roadmap.prototype.addFeatures = function(activeTask) {
     if (!task.parent) {
       return;
     }
-    if ((task.parent.id === activeTask.id) && task.isExternal()) {
+    var parentTask = Utils.getTask(task.parent);
+    if ((parentTask.id === activeTask.id) && task.isExternal()) {
       return features.reliedOn.push(new TaskFeature(task.id, TASK_FEATURE_TYPE.RELIED_ON_FEATURES));
     }
-    if ((task.parent.id === activeTask.id) && task.isDownStream()) {
+    if ((parentTask.id === activeTask.id) && task.isDownStream()) {
       return features.relyThis.push(new TaskFeature(task.id, TASK_FEATURE_TYPE.RELY_THIS_FEATURES));
     }
-    if (task.parent.id === activeTask.id) {
+    if (parentTask.id === activeTask.id) {
       return features.sub.push(new TaskFeature(task.id, TASK_FEATURE_TYPE.SUB_FEATURES));
     }
   });
@@ -1713,7 +1731,6 @@ Roadmap.prototype.drawMobileChart = function(task) {
 
 Roadmap.prototype.draw = function() {
   var self = this;
-  DEFAULT_START_DATE = self.plainData.startDate;
   self.init();
   self.prepareTasks();
   self.setNav();
