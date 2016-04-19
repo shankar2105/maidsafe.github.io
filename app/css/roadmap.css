@@ -254,12 +254,12 @@
   stroke-width: 2px;
 }
 
-.mvp .box {
+.mvp .mvpbox {
   fill: #ffdd50;
   stroke: #ffb92c;
 }
-.mvp:hover .box {
- stroke-width: 3px !important;
+.mvp:hover .mvpbox {
+  stroke-width: 3px !important;
 }
 .mvp:hover text {
   font-weight: bold;
