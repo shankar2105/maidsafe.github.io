@@ -616,9 +616,9 @@ var Roadmap = function(payload) {
 
 Roadmap.prototype.getPerUnit = function() {
   var self = this;
-  var task = self.activeTasks[0];
-  return (self.timeScale(self.dateFormat.parse(task.startDate)) -
-    self.timeScale(self.dateFormat.parse(Utils.subDate(task.startDate, 1))));
+  var startDate = self.startDates[0];
+  return (self.timeScale(self.dateFormat.parse(startDate)) -
+    self.timeScale(self.dateFormat.parse(Utils.subDate(startDate, 1))));
 };
 
 Roadmap.prototype.init = function() {
@@ -1097,7 +1097,6 @@ Roadmap.prototype.drawBoxes = function() {
   var boxBase = box.append('g')
   .attr('class', function(d) {
     if (d.id === MVP_ID) {
-      console.log(d);
       return 'boxBase mvp';
     }
     return 'boxBase ' + ('svg-' + d.color);
@@ -1268,7 +1267,7 @@ Roadmap.prototype.prepareBoxes = function(activeTask) {
 
   var setBoxParams = function() {;
     var progressBarTaskSpacing = 18;
-    d3.map(roadmapTasks, function(task) {
+    d3.map(self.activeTasks, function(task) {
       var scaledStart = self.timeScale(self.dateFormat.parse(task.startDate));
       var scaledEnd =  self.timeScale(self.dateFormat.parse(task.endDate));
       var boxYPos = ((task.order - 1) * self.box.height * 2) + progressBarTaskSpacing;
@@ -1285,15 +1284,13 @@ Roadmap.prototype.prepareBoxes = function(activeTask) {
 
   var setStartDates = function() {
     var startDate = null;
-    d3.map(roadmapTasks, function(task) {
+    d3.map(self.activeTasks, function(task) {
       if (self.startDates[task.section - 1] || task.isExcluded()) {
         return;
       }
-
       if (task.section === 1) {
         return self.startDates[task.section - 1] = DEFAULT_START_DATE;
       }
-
       var startDate = Utils.addDate(self.startDates[task.section - 2], self.interval);
       var downStreamCount = self.downStreamCounts[task.section - 1] ? self.downStreamCounts[task.section - 1] : 0;
       var incomingCount = getIncomingNodesForSection(task.section);
@@ -1301,7 +1298,7 @@ Roadmap.prototype.prepareBoxes = function(activeTask) {
       gap = gap === 1 ? (gap + 1) : gap;
       self.startDates[task.section - 1] = Utils.addDate(startDate, gap);
     });
-    d3.map(roadmapTasks, function(task) {
+    d3.map(self.activeTasks, function(task) {
       task.startDate = self.startDates[task.section - 1];
       task.endDate = Utils.addDate(task.startDate, self.interval);
     });
@@ -1336,7 +1333,8 @@ Roadmap.prototype.prepareBoxes = function(activeTask) {
     }
     self.activeTasks.sort(function(a, b) {
       return a.section - b.section;
-    }
+    });
+    console.log(self.activeTasks);
   };
 
   setActiveTasks(activeTask);
@@ -1437,16 +1435,30 @@ Roadmap.prototype.prepareConnections = function() {
   if (self.activeTasks.length === 1) {
     return;
   }
+  var getDownstreamTasks = function(targetTask) {
+    var downstreams = [];
+    d3.map(self.activeTasks, function(task) {
+      if (!task.isDownStream()) {
+        return;
+      }
+      if (task.target.indexOf(targetTask.id) === -1) {
+        return;
+      }
+      downstreams.unshift(task);
+    });
+    return downstreams;
+  };
 
   var splitTask = function(targetTask) {
+    if (!targetTask) {
+      return;
+    }
     var result = {
       lowerTasks: [],
       upperTasks: []
     };
-    if (!targetTask) {
-      return;
-    }
     var incomings = targetTask.incomingTasks;
+    var downstreams = getDownstreamTasks(targetTask);
     if (!incomings) {
       return result;
     }
@@ -1457,10 +1469,11 @@ Roadmap.prototype.prepareConnections = function() {
         result.upperTasks.unshift(incoming);
       }
     });
-    lowerTasks.sort(function(a, b) {
+
+    result.lowerTasks.sort(function(a, b) {
       return a.order - b.order;
     });
-    upperTasks.sort(function(a, b) {
+    result.upperTasks.sort(function(a, b) {
       return a.order - b.order;
     });
     return result;
@@ -1482,13 +1495,11 @@ Roadmap.prototype.prepareConnections = function() {
     task.connections.push(connection);
   };
 
-  // draw upper tasks
   d3.map(self.activeTasks, function(task) {
     var incomingCountIndex = task.section - 1;
     var splitTasks = splitTask(task);
     // draw upper tasks
     d3.map(splitTasks.upperTasks, function(upperTask, index) {
-      incSecCount(task);
       var start = { x: 0, y: 0 };
       var end = { x: 0, y: 0 };
       var interStart = { x: 0, y: 0 };
@@ -1535,11 +1546,11 @@ Roadmap.prototype.prepareConnections = function() {
 
     // draw lower tasks
     d3.map(splitTasks.lowerTasks, function(lowerTask, index) {
-      incSecCount(task);
       var start = { x: 0, y: 0 };
       var end = { x: 0, y: 0 };
       var interStart = { x: 0, y: 0 };
       var interEnd = { x: 0, y: 0 };
+      incSecCount(task);
       index += splitTasks.upperTasks.length;
 
       if (task.connections.length === 0 || (index === 0)) {
@@ -1566,38 +1577,58 @@ Roadmap.prototype.prepareConnections = function() {
 
       interEnd.x = interStart.x;
       interEnd.y = end.y;
-      if (lowerTask.isDownStream()) {
-        start.x = task.box.x + task.box.width;
-        start.y = task.box.y + (self.box.height / 2);
-        var baseWidth = (self.svg.width - (self.svg.padding * 2));
-        interStart.x = start.x + self.sectionCurrentIncomingCounts[incomingCountIndex] * (self.getPerUnit() / 2);
-        if (interStart.x > baseWidth) {
-          interStart.x =  start.x + 8;
-        }
-        interStart.y = start.y;
-        interEnd = interStart;
-        end.x = interEnd.x;
-        end.y = self.svg.height - $(Utils.parseId(BREADCUM_ID)).height() -
-          $('.' + CSS_CLASS.CHART_HEADER).height() - (self.svg.padding * 2);
-        var sourceTask = Utils.getTask(lowerTask.source);
-        var labelColor = sourceTask.color || lowerTask.color;
-        var labelData = {
-          x: end.x + 8,
-          y: end.y - (self.box.height * self.sectionCurrentIncomingCounts[incomingCountIndex]),
-          className: labelColor,
-          desc: lowerTask.desc,
-          source: sourceTask.id,
-          stroke: lowerTask.color
-        };
-        // if end downstream
-        if (interStart.x > baseWidth) {
-          labelData.x -= self.label.width + 16;
-        }
-        self.drawLabel(labelData);
-      }
       createConnection(task, lowerTask.id, start, interStart, interEnd, end, lowerTask.color);
     });
   });
+
+  d3.map(self.activeTasks, function(task) {
+    if (task.isExcluded()) {
+      return;
+    }
+    var incFlag = false;
+    var downstreams = getDownstreamTasks(task);
+    var incomingCountIndex = task.section - 1;
+    d3.map(downstreams, function(downstream) {
+      if (!incFlag) {
+        incSecCount(task);
+        incFlag = true;
+      }
+      var start = { x: 0, y: 0 };
+      var end = { x: 0, y: 0 };
+      var interStart = { x: 0, y: 0 };
+      var interEnd = { x: 0, y: 0 };
+      start.x = task.box.x + task.box.width;
+      start.y = task.box.y + (self.box.height / 2);
+      var baseWidth = (self.svg.width - (self.svg.padding * 2));
+      interStart.x = start.x + self.sectionCurrentIncomingCounts[incomingCountIndex] * (self.getPerUnit() / 2);
+      if (interStart.x > baseWidth) {
+        interStart.x =  start.x + 8;
+      }
+      interStart.y = start.y;
+      interEnd = interStart;
+      end.x = interEnd.x;
+      end.y = self.svg.height - $(Utils.parseId(BREADCUM_ID)).height() -
+        $('.' + CSS_CLASS.CHART_HEADER).height() - (self.svg.padding * 2);
+      var sourceTask = Utils.getTask(downstream.source);
+      var labelColor = sourceTask.color || downstream.color;
+      var labelData = {
+        x: end.x + 8,
+        y: end.y - (self.box.height * self.sectionCurrentIncomingCounts[incomingCountIndex]),
+        className: labelColor,
+        desc: downstream.desc,
+        source: sourceTask.id,
+        stroke: downstream.color
+      };
+      // if end downstream
+      if (interStart.x > baseWidth) {
+        labelData.x -= self.label.width + 16;
+      }
+      self.drawLabel(labelData);
+      console.log(task.name, downstreams, start, interStart, interEnd, end, self.sectionCurrentIncomingCounts[incomingCountIndex]);
+      createConnection(task, downstream.id, start, interStart, interEnd, end, downstream.color);
+    });
+  });
+
   self.drawConnections();
 
   // move labels to front
