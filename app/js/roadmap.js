@@ -1599,16 +1599,17 @@ Roadmap.prototype.prepareConnections = function() {
       var interEnd = { x: 0, y: 0 };
       start.x = task.box.x + task.box.width;
       start.y = task.box.y + (self.box.height / 2);
+
       var baseWidth = (self.svg.width - (self.svg.padding * 2));
-      interStart.x = start.x + self.sectionCurrentIncomingCounts[incomingCountIndex] * (self.getPerUnit() / 2);
+      interStart.x = start.x + (self.sectionCurrentIncomingCounts[incomingCountIndex] * self.getPerUnit());
+
       if (interStart.x > baseWidth) {
         interStart.x =  start.x + 8;
       }
       interStart.y = start.y;
       interEnd = interStart;
       end.x = interEnd.x;
-      end.y = self.svg.height - $(Utils.parseId(BREADCUM_ID)).height() -
-        $('.' + CSS_CLASS.CHART_HEADER).height() - (self.svg.padding * 2);
+      end.y = self.svg.height - (self.svg.padding * 2);
       var sourceTask = Utils.getTask(downstream.source);
       var labelColor = sourceTask.color || downstream.color;
       var labelData = {
@@ -1628,7 +1629,7 @@ Roadmap.prototype.prepareConnections = function() {
       createConnection(task, downstream.id, start, interStart, interEnd, end, downstream.color);
     });
   });
-
+  
   self.drawConnections();
 
   // move labels to front
