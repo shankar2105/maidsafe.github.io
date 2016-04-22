@@ -276,13 +276,17 @@
   /* #Post 3 */
   /* Roadmap */
   .roadmap {
+    /*display: flex;*/
     height: auto;
     min-height: 600px;
   }
   .roadmap .roadmapNav {
-    width: 300px;
+    width: 30%;
     height: 100%;
     min-height: inherit;
+  }
+  .roadmap .roadmapChart {
+    width: 70%;
   }
   .roadmapBreadcrumb .breadcrumb-i {
     padding-bottom: 8px;
@@ -328,8 +332,9 @@
     display: none !important;
   }
   .roadmapChart-h-desc {
-    display: block !important;
-    padding: 8px 20px 0;
+    /*display: block !important;
+    padding: 8px 20px 0;*/
+    display: none;
   }
   .roadmapChart-h-desc-title {
     display: block;
@@ -337,8 +342,5 @@
     font-size: 19px;
     color: #282828;
     font-weight: 600;
-  }
-  .listTitle {
-    width: 80%;
   }
 }
