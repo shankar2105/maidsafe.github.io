@@ -52,7 +52,10 @@ var showMobPrimaryNav = function() {
   $('#navDropdown > a').on('click', function(e) {
     e.preventDefault();
     $(this).parent().toggleClass('open');
-  })
+  });
+  $('#navDropdown .nav-dropdown-b > li a').on('click', function(e) {
+    $('#navDropdown').toggleClass('open');
+  });
 };
 
 // Modal events
