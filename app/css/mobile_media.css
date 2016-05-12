@@ -5,11 +5,6 @@
     padding: 0;
   }
   /* #Common */
-  /* header */
-  header .header-b {
-    padding: 0;
-  }
-  /* header */
   /* primary nav */
   .primary-nav .primary-nav-b > li:not(.nav-dropdown) {
     display: none;
@@ -209,6 +204,9 @@
   }
   .app-footer .app-footer-r.top {
     width: 100%;
+  }
+  .app-footer-btns-b {
+    justify-content: flex-start;
   }
   .footer-wig-a:first-child {
     width: 100%;

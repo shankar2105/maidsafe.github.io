@@ -18,6 +18,11 @@ a, a:hover {
   clear: both;
 }
 
+.root {
+  padding-bottom: 120px;
+}
+
+/* alpha button */
 .al-btn {
   background-color: #FFF !important;
   font-size: 16px !important;
@@ -58,6 +63,7 @@ a, a:hover {
   background-color: rgba(85,146,215, 0.5) !important;
   color: #FFF !important;
 }
+/* alpha button */
 
 /* site logo */
 .site-logo {
@@ -212,7 +218,7 @@ header.onScroll {
 }
 
 header .header-b {
-  padding: 0 16px;
+  padding: 0;
   position: relative;
 }
 
@@ -269,7 +275,6 @@ header.invert .nav-dropdown.open a, header.invert .nav-dropdown.open a:hover {
 header.invert .nav-dropdown.open .nav-dropdown-b > li a:hover {
   background-color: #5593d7 !important;
 }
-
 /* Header */
 
 .inline {
@@ -283,14 +288,6 @@ header.invert .nav-dropdown.open .nav-dropdown-b > li a:hover {
 .wrapper {
   padding-left: 0;
   padding-right: 0;
-}
-
-.root {
-  padding-bottom: 160px;
-}
-
-.root.sub-page-2 {
-  padding-bottom: 120px;
 }
 
 .root.sub-page-4 {
@@ -1024,6 +1021,82 @@ header.invert .nav-dropdown.open .nav-dropdown-b > li a:hover {
 .app-footer .app-footer-r.bottom {
   text-align: right;
 }
+
+.app-footer-btns-b {
+  width: 100%;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  text-align: center;
+}
+
+.app-footer-btns-b .app-footer-btns {
+  width: 60px;
+  height: 60px;
+  display: inline-block;
+  background-color: transparent;
+  margin: 20px 16.5px;
+  background-image: url(../img/footer/footer_btns.svg);
+  background-size: 352px;
+}
+
+.app-footer-btns-b .app-footer-btns a {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.app-footer-btns-b .app-footer-btns.community {
+  background-position: 0 0;
+}
+
+.app-footer-btns-b .app-footer-btns.community:hover {
+  background-position: 0 -58px;
+}
+
+.app-footer-btns-b .app-footer-btns.slack {
+  background-position: -58.999999px 1px;
+}
+
+.app-footer-btns-b .app-footer-btns.slack:hover {
+  background-position: -58.999999px -58px;
+}
+
+.app-footer-btns-b .app-footer-btns.youtube {
+  background-position: -116.999999px 1px;
+}
+
+.app-footer-btns-b .app-footer-btns.youtube:hover {
+  background-position: -116.999999px -58px;
+}
+
+.app-footer-btns-b .app-footer-btns.reddit {
+  background-position: -174.999999px 1px;
+}
+
+.app-footer-btns-b .app-footer-btns.reddit:hover {
+  background-position: -174.999999px -58px;
+}
+
+.app-footer-btns-b .app-footer-btns.twitter {
+  background-position: -232.999999px 1px;
+}
+
+.app-footer-btns-b .app-footer-btns.twitter:hover {
+  background-position: -232.999999px -58px;
+}
+
+.app-footer-btns-b .app-footer-btns.meetup {
+  background-position: -290.999999px 1px;
+}
+
+.app-footer-btns-b .app-footer-btns.meetup:hover {
+  background-position: -290.999999px -58px;
+}
+
 .app-footer .spliter {
   width: 100%;
   height: 2px;

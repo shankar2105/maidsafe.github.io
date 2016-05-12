@@ -1,10 +1,5 @@
 /* Less Than 1135px */
 @media screen and (min-width: 830px) and (max-width: 1134px){
-  /* header */
-  header .header-b {
-    padding: 0;
-  }
-  /* header */
   /* primary nav */
   .primary-nav .primary-nav-b > li:not(.nav-dropdown) {
     display: none;
