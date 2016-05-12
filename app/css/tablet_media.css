@@ -1,7 +1,26 @@
 /* Media Less than 830px  */
 @media screen and (min-width: 512px) and (max-width: 829px) {
-  /* Common */
-  /* #Common */
+  /* header */
+  header .header-b {
+    padding: 0;
+  }
+  /* header */
+  /* primary nav */
+  .primary-nav .primary-nav-b > li:not(.nav-dropdown) {
+    display: none;
+  }
+  .nav-dropdown > .show-on-mob {
+    display: table-cell !important;
+  }
+
+  .nav-dropdown > a:not(.show-on-mob) {
+    display: none !important;
+  }
+
+  .nav-dropdown .nav-dropdown-b > .show-on-mob {
+    display: block !important;
+  }
+  /* primary nav */
   /* Home Banner */
   .home-banner {
     height: 400px;

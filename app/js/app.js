@@ -21,26 +21,30 @@ var updateHeader = function() {
 };
 
 var showMobPrimaryNav = function() {
-  $('#secNavButton').on('click', function() {
-    var target = $('#secNav');
-    var temp = window.location.pathname.split('/');
-    temp = temp[temp.length - 1];
-    if (window.invertedHeader) {
-      $(this).addClass('invert');
-      target.addClass('invert');
-    }
-    if ($(this).hasClass('selected')) {
-      $(this).removeClass('selected');
-    } else {
-      $(this).addClass('selected');
-    }
-
-    if (target.hasClass('show')) {
-      target.removeClass('show');
-      return;
-    }
-    target.addClass('show');
-  });
+  // $('#secNavButton').on('click', function() {
+  //   var target = $('#secNav');
+  //   var temp = window.location.pathname.split('/');
+  //   temp = temp[temp.length - 1];
+  //   if (window.invertedHeader) {
+  //     $(this).addClass('invert');
+  //     target.addClass('invert');
+  //   }
+  //   if ($(this).hasClass('selected')) {
+  //     $(this).removeClass('selected');
+  //   } else {
+  //     $(this).addClass('selected');
+  //   }
+  //
+  //   if (target.hasClass('show')) {
+  //     target.removeClass('show');
+  //     return;
+  //   }
+  //   target.addClass('show');
+  // });
+  $('#navDropdown a').on('click', function(e) {
+    e.preventDefault();
+    $(this).parent().toggleClass('open');
+  })
 };
 
 // Modal events

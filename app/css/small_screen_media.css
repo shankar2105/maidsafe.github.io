@@ -1,21 +1,26 @@
 /* Less Than 1135px */
 @media screen and (min-width: 830px) and (max-width: 1134px){
-  /* Header */
-  header .sec-1 {
-    width: 25%;
+  /* header */
+  header .header-b {
+    padding: 0;
   }
-  header .sec-2 {
-    width: 75%;
+  /* header */
+  /* primary nav */
+  .primary-nav .primary-nav-b > li:not(.nav-dropdown) {
+    display: none;
   }
-  header .sec-2 .primary-nav {
-    display: block !important;
+  .nav-dropdown > .show-on-mob {
+    display: table-cell !important;
   }
 
-  /* Secondary Navigation */
-  header .secondary-nav.show {
+  .nav-dropdown > a:not(.show-on-mob) {
     display: none !important;
   }
-  /* #Header */
+
+  .nav-dropdown .nav-dropdown-b > .show-on-mob {
+    display: block !important;
+  }
+  /* primary nav */
 
   /* Home Banner */
   .home-banner {
